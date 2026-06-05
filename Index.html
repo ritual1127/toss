@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang=\"ko\">
+<head>
+    <meta charset=\"UTF-8\">
+    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
+    <title>송금 요청 - 친구들에게 돈 받기</title>
+    <script src=\"https://cdn.tailwindcss.com\"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #191F28;
+            color: white;
+            padding: 16px 24px;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+            z-index: 1000;
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        .btn-primary {
+            background: #3182F6;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary:hover {
+            background: #1B64DA;
+        }
+        
+        .btn-primary:active {
+            transform: scale(0.98);
+        }
+        
+        .card {
+            background: white;
+            border-radius: 24px;
+            padding: 20px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+            transition: all 0.2s;
+        }
+        
+        .input-field {
+            background: #F2F4F6;
+            border: 2px solid transparent;
+            border-radius: 12px;
+            padding: 16px;
+            font-size: 16px;
+            width: 100%;
+            transition: all 0.2s;
+        }
+        
+        .input-field:focus {
+            outline: none;
+            background: white;
+            border-color: #3182F6;
+            box-shadow: 0 0 0 3px rgba(49, 130, 246, 0.1);
+        }
+        
+        .tab {
+            flex: 1;
+            padding: 12px;
+            border-radius: 8px;
+            font-weight: 600;
+            color: #8B95A1;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .tab.active {
+            background: white;
+            color: #191F28;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body class=\"bg-gray-50 min-h-screen\">
+    <!-- Container -->
+    <div class=\"max-w-md mx-auto min-h-screen bg-[#F9FAFB]\">
+        
+        <!-- Header -->
+        <div class=\"bg-white shadow-sm p-6\">
+            <h1 class=\"text-3xl font-bold text-[#191F28] mb-2\">송금 요청</h1>
+            <p class=\"text-[#8B95A1]\">친구들에게 돈을 요청하세요</p>
+        </div>
+
+        <!-- Main Content -->
+        <div class=\"p-6\">
+            
+            <!-- Summary Cards -->
+            <div class=\"grid grid-cols-2 gap-3 mb-6\">
+                <div class=\"bg-[#E8F3FF] rounded-2xl p-4\">
+                    <p class=\"text-sm text-[#3182F6] font-semibold mb-1\">받은 돈</p>
+                    <p class=\"text-2xl font-bold text-[#3182F6]\" id=\"totalReceived\">0원</p>
+                </div>
+                <div class=\"bg-[#FFF0F0] rounded-2xl p-4\">
+                    <p class=\"text-sm text-[#F04452] font-semibold mb-1\">못 받은 돈</p>
+                    <p class=\"text-2xl font-bold text-[#F04452]\" id=\"totalUnreceived\">0원</p>
+                </div>
+            </div>
+
+            <!-- Account Setting Card -->
+            <div class=\"card mb-6\" id=\"accountCard\">
+                <h3 class=\"text-lg font-bold text-[#191F28] mb-4\">내 계좌 설정</h3>
+                <div class=\"space-y-3\">
+                    <input 
+                        type=\"text\" 
+                        id=\"bankName\" 
+                        placeholder=\"은행 이름 (예: 신한은행)\"
+                        class=\"input-field\"
+                    >
+                    <input 
+                        type=\"text\" 
+                        id=\"accountNumber\" 
+                        placeholder=\"계좌번호 (예: 110-123-456789)\"
+                        class=\"input-field\"
+                    >
+                    <button onclick=\"saveAccount()\" class=\"btn-primary text-white rounded-xl py-4 font-bold text-lg w-full\">
+                        💾 저장하기
+                    </button>
+                </div>
+            </div>
+
+            <!-- Create Request Form -->
+            <div class=\"card mb-6\" id=\"createForm\">
+                <h3 class=\"text-lg font-bold text-[#191F28] mb-4\">새 요청 만들기</h3>
+                <div class=\"space-y-3\">
+                    <input 
+                        type=\"number\" 
+                        id=\"amount\" 
+                        placeholder=\"금액 (예: 10000)\"
+                        class=\"input-field\"
+                    >
+                    <input 
+                        type=\"date\" 
+                        id=\"date\" 
+                        class=\"input-field\"
+                    >
+                    <textarea 
+                        id=\"memo\" 
+                        placeholder=\"메모 (예: 12월 5일 치맥 비용)\"
+                        rows=\"3\"
+                        class=\"input-field\"
+                    ></textarea>
+                    <button onclick=\"createRequest()\" class=\"btn-primary text-white rounded-xl py-4 font-bold text-lg w-full\">
+                        ➕ 요청 만들기
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <div class=\"bg-[#F2F4F6] p-1 rounded-xl flex gap-1 mb-4\">
+                <div class=\"tab active\" onclick=\"switchTab('unreceived')\">
+                    못 받은 돈 (<span id=\"unreceivedCount\">0</span>)
+                </div>
+                <div class=\"tab\" onclick=\"switchTab('received')\">
+                    받은 돈 (<span id=\"receivedCount\">0</span>)
+                </div>
+            </div>
+
+            <!-- Request Lists -->
+            <div id=\"unreceivedList\" class=\"space-y-4\"></div>
+            <div id=\"receivedList\" class=\"space-y-4 hidden\"></div>
+
+        </div>
+    </div>
+
+    <script>
+        // Initialize
+        let requests = JSON.parse(localStorage.getItem('moneyRequests') || '[]');
+        let account = JSON.parse(localStorage.getItem('accountInfo') || '{}');
+
+        // Load account info
+        if (account.bank && account.accountNo) {
+            document.getElementById('bankName').value = account.bank;
+            document.getElementById('accountNumber').value = account.accountNo;
+        }
+
+        // Toast notification
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        // Save account info
+        function saveAccount() {
+            const bank = document.getElementById('bankName').value.trim();
+            const accountNo = document.getElementById('accountNumber').value.trim();
+            
+            if (!bank || !accountNo) {
+                showToast('은행과 계좌번호를 모두 입력해주세요');
+                return;
+            }
+            
+            account = { bank, accountNo };
+            localStorage.setItem('accountInfo', JSON.stringify(account));
+            showToast('계좌 정보가 저장되었습니다! 💾');
+        }
+
+        // Create new request
+        function createRequest() {
+            const amount = parseInt(document.getElementById('amount').value);
+            const date = document.getElementById('date').value;
+            const memo = document.getElementById('memo').value.trim();
+            
+            if (!amount || !date || !memo) {
+                showToast('모든 항목을 입력해주세요');
+                return;
+            }
+
+            if (!account.bank || !account.accountNo) {
+                showToast('먼저 계좌 정보를 설정해주세요');
+                return;
+            }
+            
+            const request = {
+                id: Date.now(),
+                amount,
+                date,
+                memo,
+                paid: false,
+                paidAmount: 0,
+                token: generateToken()
+            };
+            
+            requests.unshift(request);
+            localStorage.setItem('moneyRequests', JSON.stringify(requests));
+            
+            // Clear form
+            document.getElementById('amount').value = '';
+            document.getElementById('date').value = '';
+            document.getElementById('memo').value = '';
+            
+            showToast('요청이 생성되었습니다! ✨');
+            renderRequests();
+        }
+
+        // Generate random token
+        function generateToken() {
+            return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+        }
+
+        // Share request
+        function shareRequest(id) {
+            const request = requests.find(r => r.id === id);
+            if (!request) return;
+            
+            const shareUrl = `${window.location.origin}${window.location.pathname}?token=${request.token}`;
+            
+            if (navigator.share) {
+                navigator.share({
+                    title: '송금 요청',
+                    text: `${request.memo} - ${request.amount.toLocaleString()}원`,
+                    url: shareUrl
+                }).then(() => {
+                    showToast('공유 성공! 📤');
+                }).catch(() => {
+                    copyToClipboard(shareUrl);
+                });
+            } else {
+                copyToClipboard(shareUrl);
+            }
+        }
+
+        // Copy to clipboard
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text);
+            showToast('링크가 복사되었습니다! 📋');
+        }
+
+        // Mark as paid
+        function markAsPaid(id) {
+            const request = requests.find(r => r.id === id);
+            if (!request) return;
+            
+            request.paid = true;
+            request.paidAmount = request.amount;
+            localStorage.setItem('moneyRequests', JSON.stringify(requests));
+            
+            showToast('받은 돈으로 표시되었습니다! ✅');
+            renderRequests();
+        }
+
+        // Delete request
+        function deleteRequest(id) {
+            if (!confirm('이 요청을 삭제하시겠습니까?')) return;
+            
+            requests = requests.filter(r => r.id !== id);
+            localStorage.setItem('moneyRequests', JSON.stringify(requests));
+            
+            showToast('요청이 삭제되었습니다');
+            renderRequests();
+        }
+
+        // Switch tab
+        function switchTab(tab) {
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            if (tab === 'unreceived') {
+                document.getElementById('unreceivedList').classList.remove('hidden');
+                document.getElementById('receivedList').classList.add('hidden');
+            } else {
+                document.getElementById('unreceivedList').classList.add('hidden');
+                document.getElementById('receivedList').classList.remove('hidden');
+            }
+        }
+
+        // Render requests
+        function renderRequests() {
+            const unreceivedRequests = requests.filter(r => !r.paid);
+            const receivedRequests = requests.filter(r => r.paid);
+            
+            // Update counts
+            document.getElementById('unreceivedCount').textContent = unreceivedRequests.length;
+            document.getElementById('receivedCount').textContent = receivedRequests.length;
+            
+            // Calculate totals
+            const totalReceived = receivedRequests.reduce((sum, r) => sum + r.paidAmount, 0);
+            const totalUnreceived = unreceivedRequests.reduce((sum, r) => sum + r.amount, 0);
+            
+            document.getElementById('totalReceived').textContent = totalReceived.toLocaleString() + '원';
+            document.getElementById('totalUnreceived').textContent = totalUnreceived.toLocaleString() + '원';
+            
+            // Render unreceived
+            const unreceivedList = document.getElementById('unreceivedList');
+            if (unreceivedRequests.length === 0) {
+                unreceivedList.innerHTML = `
+                    <div class=\"text-center py-12\">
+                        <div class=\"text-6xl mb-4\">⏰</div>
+                        <p class=\"text-[#8B95A1]\">아직 받지 못한 돈이 없어요</p>
+                    </div>
+                `;
+            } else {
+                unreceivedList.innerHTML = unreceivedRequests.map(req => `
+                    <div class=\"card\">
+                        <div class=\"flex items-start justify-between mb-3\">
+                            <div class=\"flex-1\">
+                                <div class=\"flex items-center gap-2 mb-1\">
+                                    <span class=\"text-[#F04452]\">⏰</span>
+                                    <span class=\"text-[#8B95A1] text-sm\">${req.date}</span>
+                                </div>
+                                <p class=\"text-[#4E5968] text-sm mb-2\">${req.memo}</p>
+                                <p class=\"text-2xl font-bold text-[#191F28]\">${req.amount.toLocaleString()}원</p>
+                            </div>
+                        </div>
+                        <div class=\"flex gap-2\">
+                            <button onclick=\"shareRequest(${req.id})\" class=\"flex-1 border border-[#E5E8EB] text-[#4E5968] rounded-xl py-3 font-semibold hover:bg-[#F2F4F6]\">
+                                📤 공유하기
+                            </button>
+                            <button onclick=\"markAsPaid(${req.id})\" class=\"flex-1 bg-[#34C759] text-white rounded-xl py-3 font-semibold hover:bg-[#2DB84D]\">
+                                ✅ 받았어요
+                            </button>
+                        </div>
+                        <button onclick=\"deleteRequest(${req.id})\" class=\"w-full mt-2 text-[#F04452] text-sm hover:underline\">
+                            삭제
+                        </button>
+                    </div>
+                `).join('');
+            }
+            
+            // Render received
+            const receivedList = document.getElementById('receivedList');
+            if (receivedRequests.length === 0) {
+                receivedList.innerHTML = `
+                    <div class=\"text-center py-12\">
+                        <div class=\"text-6xl mb-4\">✅</div>
+                        <p class=\"text-[#8B95A1]\">아직 받은 돈이 없어요</p>
+                    </div>
+                `;
+            } else {
+                receivedList.innerHTML = receivedRequests.map(req => `
+                    <div class=\"card\">
+                        <div class=\"flex items-start justify-between mb-3\">
+                            <div class=\"flex-1\">
+                                <div class=\"flex items-center gap-2 mb-1\">
+                                    <span class=\"text-[#34C759]\">✅</span>
+                                    <span class=\"text-[#8B95A1] text-sm\">${req.date}</span>
+                                </div>
+                                <p class=\"text-[#4E5968] text-sm mb-2\">${req.memo}</p>
+                                <p class=\"text-2xl font-bold text-[#191F28]\">${req.amount.toLocaleString()}원</p>
+                                <p class=\"text-sm text-[#34C759] mt-1\">${req.paidAmount.toLocaleString()}원 받음</p>
+                            </div>
+                        </div>
+                        <button onclick=\"deleteRequest(${req.id})\" class=\"w-full text-[#F04452] text-sm hover:underline\">
+                            삭제
+                        </button>
+                    </div>
+                `).join('');
+            }
+        }
+
+        // Check if opened via share link
+        function checkShareLink() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const token = urlParams.get('token');
+            
+            if (token) {
+                const request = requests.find(r => r.token === token);
+                if (request) {
+                    showPaymentModal(request);
+                }
+            }
+        }
+
+        // Show payment modal
+        function showPaymentModal(request) {
+            const modal = document.createElement('div');
+            modal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 20px;';
+            
+            modal.innerHTML = `
+                <div class=\"bg-white rounded-3xl p-6 max-w-md w-full\" style=\"box-shadow: 0 20px 60px rgba(0,0,0,0.3);\">
+                    <div class=\"text-center mb-6\">
+                        <p class=\"text-[#8B95A1] mb-2\">송금 요청</p>
+                        <p class=\"text-4xl font-bold text-[#191F28] mb-2\">${request.amount.toLocaleString()}원</p>
+                        <p class=\"text-[#4E5968]\">${request.memo}</p>
+                        <p class=\"text-sm text-[#8B95A1] mt-2\">${request.date}</p>
+                    </div>
+                    
+                    ${account.bank && account.accountNo ? `
+                        <div class=\"bg-[#F2F4F6] rounded-2xl p-4 mb-4\">
+                            <p class=\"text-sm text-[#8B95A1] mb-1\">계좌 정보</p>
+                            <p class=\"text-[#191F28] font-semibold\">${account.bank} ${account.accountNo}</p>
+                        </div>
+                    ` : ''}
+                    
+                    <div class=\"space-y-3\">
+                        <button onclick=\"sendToToss(${request.amount})\" class=\"btn-primary text-white rounded-xl py-4 font-bold text-lg w-full\">
+                            💸 토스로 보내기
+                        </button>
+                        <button onclick=\"copyAccount()\" class=\"bg-[#F2F4F6] text-[#4E5968] rounded-xl py-4 font-bold text-lg w-full hover:bg-[#E5E8EB]\">
+                            📋 계좌번호 복사
+                        </button>
+                        <button onclick=\"closeModal()\" class=\"border border-[#E5E8EB] text-[#4E5968] rounded-xl py-3 font-semibold w-full\">
+                            닫기
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            window.currentModal = modal;
+        }
+
+        // Send to Toss
+        function sendToToss(amount) {
+            if (!account.bank || !account.accountNo) {
+                showToast('계좌 정보가 설정되지 않았습니다');
+                return;
+            }
+            
+            const tossUrl = `supertoss://send?bank=${encodeURIComponent(account.bank)}&accountNo=${encodeURIComponent(account.accountNo)}&amount=${amount}`;
+            window.location.href = tossUrl;
+            showToast('토스 앱으로 이동합니다...');
+        }
+
+        // Copy account
+        function copyAccount() {
+            if (!account.accountNo) {
+                showToast('계좌번호가 없습니다');
+                return;
+            }
+            
+            copyToClipboard(`${account.bank} ${account.accountNo}`);
+        }
+
+        // Close modal
+        function closeModal() {
+            if (window.currentModal) {
+                window.currentModal.remove();
+                window.currentModal = null;
+            }
+        }
+
+        // Initialize
+        renderRequests();
+        checkShareLink();
+    </script>
+</body>
+</html> 
